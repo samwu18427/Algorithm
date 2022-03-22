@@ -1,0 +1,124 @@
+package FP_growth;
+
+import java.io.*;
+import java.util.*;
+
+public class FP_growth_Algo {
+    static ArrayList<ArrayList> TL = new ArrayList<>();                         //original transaction list
+    static ArrayList<ArrayList<String>> OrderTL = new ArrayList<>();            //order transaction list
+    static List<String> FPs = new ArrayList<>();                                //Frequent Pattern set
+    static String FilePath = "Dataset/testdata";
+    static String delim = " ";
+    static int MinSup = 3;
+    static Map<String,TreeNode>HeaderTable= new LinkedHashMap<>();
+
+    static void FP_growth() throws IOException {
+        config();
+        TreeNode.creatTree(OrderTL,HeaderTable);
+//      creatTree();
+        traveltree();
+    }
+
+    static void config() throws IOException {
+        BufferedReader br = new BufferedReader(new FileReader(FilePath));
+        Map<String, Integer> Itemset = new HashMap<>();
+
+        /**Read dataset & count item*/
+        while (br.ready()) {
+            String line = br.readLine();
+            ArrayList<String> tempList = new ArrayList<>();
+            StringTokenizer st = new StringTokenizer(line, delim);
+            while (st.hasMoreTokens()) {
+                String id = st.nextToken();
+                tempList.add(id);
+                Itemset.put(id, Itemset.getOrDefault(id, 0) + 1);
+            }
+            TL.add(tempList);
+        }
+
+        /**Find frequent pattern set*/
+        List<Map.Entry<String, Integer>> tempList = new ArrayList<>(Itemset.entrySet());
+        tempList.sort(Map.Entry.comparingByValue());
+        Collections.reverse(tempList);
+        for (Map.Entry<String, Integer> entry : tempList)
+            if (entry.getValue() >= MinSup)
+                FPs.add(entry.getKey());
+        /**Sort transaction list by frequent pattern set*/
+        for (ArrayList line : TL) {
+            ArrayList<String> orderLine = new ArrayList<>();
+            for (String Fid : FPs)
+                if (line.contains(Fid))
+                    orderLine.add(Fid);
+            if (orderLine.size() > 0)
+                OrderTL.add(orderLine);
+        }
+
+/*      for (ArrayList line : OrderTL)
+            System.out.println(line);
+        System.out.println('\n' + "Frequent pattern: " + '\n' + FPs);
+*/
+        /**Create HeaderTable*/
+        System.out.println('\n' + "Frequent pattern: " + '\n' + FPs);
+        for(int i=FPs.size()-1;i>=0;i--) {
+            String ID=FPs.get(i);
+            HeaderTable.put(ID, null);
+        }
+    }
+    /**Input OrderTl to TreeNode*/
+    static void creatTree() {
+        TreeNode root = new TreeNode(null,0,null);
+        for (ArrayList<String> al : OrderTL) {
+            TreeNode parentNode = root;
+            for (String id : al) {
+                for (TreeNode check : parentNode.child)
+                    if (check.ID.equals(id)) {
+                        check.count++;
+                        parentNode = check;
+                        break;
+                    }
+                TreeNode node = new TreeNode(id, 1, parentNode);
+                parentNode.child.add(node);
+                parentNode = node;
+                node.NextSameIDlink = HeaderTable.get(id);
+                HeaderTable.put(id, node);
+            }
+        }
+    }
+
+    static void traveltree(){
+        List<String> setlist=new ArrayList<>();
+        for(Map.Entry<String,TreeNode> entry:HeaderTable.entrySet()) {
+            TreeNode HTnode = entry.getValue();
+            System.out.println("key: "+entry.getKey());
+            do{
+                String set="";
+                TreeNode parentnode;
+                if(HTnode.parent!=null)
+                    parentnode=HTnode.parent;
+                else{
+                    parentnode=HTnode;
+                }
+                do {
+                    System.out.print(parentnode.ID+" ");
+                    //set += parentnode.ID + " ";
+                    if(parentnode.parent.ID!=null)
+                        parentnode = parentnode.parent;
+                }while(parentnode.parent.ID!=null);
+                System.out.println();
+                HTnode=HTnode.NextSameIDlink;
+            }while(HTnode!=null);
+            System.out.println();
+        }
+    }
+
+
+    public static void main(String[] args) throws IOException {
+        Runtime rt = Runtime.getRuntime();
+        rt.gc();
+        long start_memory = rt.totalMemory() - rt.freeMemory();
+        long start_time = System.currentTimeMillis();
+        FP_growth();
+        System.err.println((float) (rt.totalMemory() - rt.freeMemory() - start_memory) / 1024 / 1024 + " MB");
+        System.err.println("Execution time: " + (double) (System.currentTimeMillis() - start_time) / 1000 + "秒");
+    }
+}
